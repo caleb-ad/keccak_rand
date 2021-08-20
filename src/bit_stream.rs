@@ -10,19 +10,35 @@ use std::{
    },
    ops::{
       Index,
+      BitAnd,
+      BitOr,
+      BitAndAssign,
+      BitOrAssign,
+      Shl,
+      ShlAssign,
+      Shr,
+      ShrAssign,
    },
+   convert::Into,
 };
 
-pub struct BitStream{
-   bits: Vec<u8>,
-   length: usize
+pub struct BitStream<I>
+//where I: BitAnd + BitOr + BitAndAssign + BitOrAssign +
+//         Shl + Shr + ShlAssign + ShrAssign + Debug
+{
+   bits: Vec<I>,
+   unit_size: usize, // in bytes
+   length: usize // in bits
 }
 
-impl BitStream{
+impl<I> BitStream<I>
+where I: BitAnd + BitOr + BitAndAssign + BitOrAssign +
+         Shl + Shr + ShlAssign + ShrAssign + Debug + Clone + From<i64>
+{
    const ONE: u8 = 1;
    const ZERO: u8 = 0;
 
-   /// for i64 and usize, bits are in "reverse" order, ie. get(0) returns MSB
+   /// integer types are put in the bit stream from MSB -> LSB
    pub fn from_i64(src: i64) -> Self{
       let mut temp = BitStream{
          bits: Vec::new(),
@@ -38,27 +54,48 @@ impl BitStream{
 
    pub fn from_usize(src: usize) -> Self{
       let mut temp = BitStream{
-         bits: Vec::new(),
+         bits: Vec::<I>::new(),
+         unit_size: size_of::<I>(),
          length: size_of::<usize>() * 8,
       };
-      temp.bits.resize(size_of::<usize>(), 0);
-      let mask: usize = 0xFF;
-      for idx in 0..size_of::<usize>(){
-         temp.bits[idx] = ((src >> (size_of::<usize>() - 1 - idx)*8) & mask) as u8;
+      temp.bits.resize(temp.unit_size / size_of::<usize>(), I::from(0));
+      let mut unit_idx = 0;
+      let mut idx = 0;
+      for b_idx in (0..size_of::<usize>()).rev(){
+         temp.bits[idx] &= I::from((src & (0xFF_usize << b_idx)) as i64 >> unit_idx);
+         unit_idx -= 1;
+         if unit_idx == 0 {
+            unit_idx = temp.unit_size;
+            idx += 1;
+         }
       }
       return temp;
    }
 
+   pub fn from_val(src:& [I]) -> Self{
+      let mut temp = BitStream{
+         bits: Vec::<I>::new(),
+         unit_size: size_of::<I>(),
+         length: size_of::<usize>() * 8,
+      };
+   }
+
    pub fn from_str<'a>(src: &'a str) -> Self{
       let mut temp = BitStream{
-         bits: Vec::new(),
+         bits: Vec::<I>::new(),
+         unit_size: size_of::<I>(),
          length: src.len() * 8,
       };
-      temp.bits.resize(src.len(), 0);
+      temp.bits.resize(temp.unit_size / src.len(), I::from(0));
       let mut idx = 0;
+      let mut unit_idx = temp.unit_size - 1;
       for byte in src.as_bytes(){
-         temp.bits[idx] = *byte;
-         idx += 1;
+         temp.bits[idx] &= I::from((*byte as i64) << unit_idx * 8);
+         unit_idx -= 1;
+         if unit_idx == 0 {
+            unit_idx = temp.unit_size;
+            idx += 1;
+         }
       }
       return temp;
    }
@@ -66,10 +103,11 @@ impl BitStream{
    /// new bitstream of length zero-initialized bits
    pub fn new(length: usize) -> Self{
       let mut temp = BitStream{
-         bits: Vec::new(),
+         bits: Vec::<I>::new(),
+         unit_size: size_of::<I>(),
          length: length,
       };
-      temp.bits.resize(f64::ceil(length as f64 / 8.0) as usize, 0);
+      temp.bits.resize(f64::ceil(length as f64 / 8.0) as usize, I::from(0));
       return temp;
    }
 

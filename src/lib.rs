@@ -179,7 +179,10 @@ impl Keccak{
 impl Debug for Keccak{
     fn fmt(& self, f: &mut Formatter<'_>) -> Result<(), Error>{
         for idx in 0..25{
-            write!(f, "x:{} y:{}, {:?}\n", idx % 5, idx / 5, self.get_lane(idx % 5, idx / 5));
+            match write!(f, "x:{} y:{}, {:?}\n", idx % 5, idx / 5, self.get_lane(idx % 5, idx / 5)){
+                Err(err) => return Err(err),
+                _ => continue,
+            }
         }
         return Ok(());
     }
