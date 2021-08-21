@@ -179,7 +179,10 @@ impl Keccak{
 impl Debug for Keccak{
     fn fmt(& self, f: &mut Formatter<'_>) -> Result<(), Error>{
         for idx in 0..25{
-            write!(f, "x:{} y:{}, {:?}\n", idx % 5, idx / 5, self.get_lane(idx % 5, idx / 5));
+            match write!(f, "x:{} y:{}, {:?}\n", idx % 5, idx / 5, self.get_lane(idx % 5, idx / 5)){
+                Err(err) => return Err(err),
+                _ => continue,
+            }
         }
         return Ok(());
     }
@@ -201,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_bitstream_get() {
-        let bits = BitStream::from_i64(0x5d);
+        let bits = BitStream::from_i64(&[0x5d]);
         assert_eq!(bits.len(), 64);
         assert_eq!(bits.get(0), 0);
         assert_eq!(bits.get(1), 0);
@@ -213,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_bitstream_from_i64() {
-        let bits = BitStream::from_i64(0x1234cdef);
+        let bits = BitStream::from_i64(&[0x1234cdef]);
         let mut result: i64 = 0;
         assert_eq!(bits.len(), 64);
         for idx in 0..bits.len(){
@@ -223,14 +226,43 @@ mod tests {
     }
 
     #[test]
-    fn test_bitstream_from_usize() {
-        let bits = BitStream::from_usize(0x6789abcd);
+    fn test_bitstream_from_val() {
+        let bits = BitStream::from_val(& [0x1234cdef_u32]);
+        let mut result: i64 = 0;
+        assert_eq!(bits.len(), 32);
+        for idx in 0..bits.len(){
+            result |= (bits.get(idx) as i64) << (31 - idx);
+        }
+        assert_eq!(result, 0x1234cdef);
+    }
+
+    #[test]
+    fn test_bitstream_try_from() {
+        let slice:[usize; 1] = [0xFFEEDDCCBBAA9988];
+        let bits = BitStream::try_from_val(& slice);
         let mut result: usize = 0;
         assert_eq!(bits.len(), size_of::<usize>() * 8);
         for idx in 0..size_of::<usize>()*8{
             result |= (bits.get(idx) as usize) << (size_of::<usize>()*8 - 1 - idx);
         }
-        assert_eq!(result, 0x6789abcd);
+        assert_eq!(result, 0xFFEEDDCCBBAA9988);
+    }
+
+    #[test]
+    fn test_bitstream_try_from_u8() {
+        let slice:[u8; 11] = [0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99, 0x88, 0x77, 0x66, 0x55];
+        let bits = BitStream::try_from_val(& slice);
+        let mut result1: u64 = 0;
+        let mut result2: u64 = 0;
+        assert_eq!(bits.len(), slice.len() * 8);
+        for idx in 0..64{
+            result1 |= (bits.get(idx) as u64) << (63 - idx);
+        }
+        for idx in 64..slice.len() * 8{
+            result2 |= (bits.get(idx) as u64) << (127 - idx);
+        }
+        assert_eq!(result1, 0xFFEEDDCCBBAA9988);
+        assert_eq!(result2, 0x7766550000000000);
     }
 
     #[test]
@@ -261,6 +293,6 @@ mod tests {
         assert_eq!(k2.depth(), 8);
         k1.keccak(18);
         k2.keccak(18);
-        assert_eq!(k1.get_state().as_vec_u8(), k2.get_state().as_vec_u8());
+        assert_eq!(k1.get_state().as_vec_u64(), k2.get_state().as_vec_u64());
     }
 }

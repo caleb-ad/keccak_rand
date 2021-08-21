@@ -7,12 +7,13 @@ use std::{
       Debug,
       Display,
       Formatter,
-      Error
+      Error,
    },
    ops::{
       Index,
    },
    convert::Into,
+   convert::TryInto,
 };
 
 #[derive(Debug)]
@@ -44,13 +45,37 @@ impl BitStream{
       };
       temp.bits.resize(f64::ceil((size_of::<T>() * src.len()) as f64 / 8.0) as usize, 0);
       let mut idx = 0;
-      let mut b_idx = 7;
+      let mut b_idx: i32 = 56;
       for src_idx in 0..src.len(){
          for src_b_idx in (0..size_of::<T>()).rev(){
-            temp.bits[idx] &= ((0xFF << src_b_idx) & src[src_idx].into()) << (b_idx - src_b_idx);
-            b_idx -= 1;
-            if b_idx == 0{
-               b_idx = 7;
+            temp.bits[idx] |= ((0xFF << src_b_idx * 8) & src[src_idx].into()) << (b_idx as usize - src_b_idx * 8);
+            b_idx -= 8;
+            if b_idx < 0{
+               b_idx = 56;
+               idx += 1;
+            }
+         }
+      }
+      return temp;
+   }
+
+   pub fn try_from_val<T>(src:& [T]) -> Self
+   where T: TryInto<u64> + Copy,
+         <T as TryInto<u64>>::Error: Debug
+   {
+      let mut temp = BitStream{
+         bits: Vec::<u64>::new(),
+         length: size_of::<T>() * 8 * src.len(),
+      };
+      temp.bits.resize(f64::ceil((size_of::<T>() * src.len()) as f64 / 8.0) as usize, 0);
+      let mut idx = 0;
+      let mut b_idx: i32 = 56;
+      for src_idx in 0..src.len(){
+         for src_b_idx in (0..size_of::<T>()).rev(){
+            temp.bits[idx] |= ((0xFFu64 << src_b_idx * 8) & src[src_idx].try_into().unwrap() ) << (b_idx as usize - src_b_idx * 8);
+            b_idx -= 8;
+            if b_idx < 0{
+               b_idx = 56;
                idx += 1;
             }
          }
@@ -65,12 +90,12 @@ impl BitStream{
       };
       temp.bits.resize(f64::ceil(src.len() as f64 / 8.0) as usize, 0);
       let mut idx = 0;
-      let mut b_idx = 7;
+      let mut b_idx: i32 = 56;
       for byte in src.as_bytes(){
-         temp.bits[idx] &= (*byte as u64) << b_idx;
-         b_idx -= 1;
-         if b_idx == 0 {
-            b_idx = 7;
+         temp.bits[idx] |= (*byte as u64) << b_idx;
+         b_idx -= 8;
+         if b_idx < 0 {
+            b_idx = 56;
             idx += 1;
          }
       }
@@ -103,7 +128,7 @@ impl BitStream{
       return self.length;
    }
 
-   pub fn as_vec_u8(& self) -> Vec<u64>{
+   pub fn as_vec_u64(& self) -> Vec<u64>{
       return self.bits.clone();
    }
 
@@ -112,10 +137,15 @@ impl BitStream{
 impl Display for BitStream{
    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error>{
       for idx in 0 .. self.len(){
-         write!(f, "{:b}", self.bits[idx]);
+         match write!(f, "{:b}", self.bits[idx]){
+            Err(err) => return Err(err),
+            _ => continue,
+         }
       }
-      write!(f, "\n");
-      return Ok(());
+      match write!(f, "\n"){
+         Err(err) => Err(err),
+         _ => Ok(()),
+      }
    }
 }
 
