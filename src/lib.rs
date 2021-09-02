@@ -17,8 +17,8 @@ type Bit = u8;
 #[derive(PartialEq)]
 pub struct Keccak{
     state: Vec<Vec<Vec<Bit>>>,
-    w: usize,
-    l: u64
+    w: usize, //depth, or length of each lane
+    l: u64 //log base 2 of w
 }
 
 impl Keccak{
@@ -167,7 +167,7 @@ impl Keccak{
         }
     }
 
-    pub fn keccak(&mut self, num_rounds: i64){
+    pub fn keccak(&mut self, num_rounds: u64){
         for r in (12 + 2 * self.l - num_rounds as u64) .. (12 + 2 * self.l){
             self.theta();
             self.rho();
@@ -177,12 +177,28 @@ impl Keccak{
         }
     }
 
-    /// xors message with current state
-    /// does rounds of keccak
-    pub fn sponge_absorb(&mut self, message:& BitStream){
+    /// pads message so it may be split evenly into blocks,
+    /// each block is xor'ed with the current state, and a round of keccak is done
+    /// unoptimized: likely slow
+    pub fn sponge_absorb(&mut self, message:&mut BitStream){
         if message.len() % (self.w * 25) != 0{
             let pad = (f64::ceil(message.len() as f64 / (self.w * 25) as f64) as u64 * (self.w * 25) as u64) - message.len() as u64;
-
+            let mut temp = Vec::<u8>::new();
+            temp.resize(pad as usize, 0_u8);
+            message.add_val(temp.as_slice());
+        }
+        let block: usize = message.len() / (self.depth() * 25);
+        let mut count: usize = 0;
+        while count < message.len(){
+            for x in 0..5 as usize{
+                for y in 0..5 as usize{
+                    for z in 0..self.depth(){
+                        self.set(x, y, z, self.get(x,y,z) ^ message.get(self.depth() * (5*y + x) + z));
+                    }
+                }
+            }
+            self.keccak(12 + 2 * self.l);
+            count += block;
         }
     }
 }
