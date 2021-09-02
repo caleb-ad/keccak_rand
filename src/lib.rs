@@ -42,11 +42,36 @@ impl Keccak{
 
     /// state arrays depth initialized to message length / 25.
     /// If the message is not evenly divisble by 25 then the message size will
-    /// be rounded down to the nearest multiple of 25
+    /// be rounded down to the nearest multiple of 25,
+    /// excess in message is unused
     pub fn new(message: & BitStream) -> Self{
         let mut temp = Keccak{
             state: Vec::new(),
             w: (message.len() as i64 / 25).try_into().unwrap(),
+            l: 0
+        };
+        temp.l = f64::log2(temp.w as f64) as u64;
+        temp.state.resize(5, Vec::new());
+        for idx in 0 .. 5 {
+            temp.state[idx].resize(5, Vec::new());
+            for idx1 in 0 .. 5 {
+                temp.state[idx][idx1].resize(temp.w, 0);
+            }
+        }
+        for idx in 0 .. temp.w * 25{
+            temp.set((idx / temp.w) % 5, idx / (temp.w * 5), idx % temp.w, message[idx]);
+        }
+        return temp;
+    }
+
+    /// behaves like new, except the state depth is set to size,
+    /// if message contains fewer bit then the state, the remaining bits are
+    /// zero-initialized. if message contains more bits than state the, some
+    /// bits in message are unused
+    pub fn new_sized(message: & BitStream, size: u64) -> Self{
+        let mut temp = Keccak{
+            state: Vec::new(),
+            w: size as usize,
             l: 0
         };
         temp.l = f64::log2(temp.w as f64) as u64;
@@ -69,6 +94,15 @@ impl Keccak{
             tmp.set(idx, self.get((idx / self.w) % 5, idx / (self.w * 5), idx % self.w));
         }
         return tmp;
+    }
+
+    /// copies and returns the first 8 bytes of self.state
+    pub fn copy_to_u64(& self) -> u64{
+        let mut temp:u64 = 0;
+        for idx in 0..64{
+            temp |= (self.get(idx / self.w % 5, idx / (self.w * 5), idx % self.w) as u64) << (63 - idx);
+        }
+        return temp;
     }
 
     pub fn empty_state(&self) -> Vec<Vec<Vec<Bit>>>{
@@ -231,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_bitstream_get() {
-        let bits = BitStream::from_i64(&[0x5d]);
+        let bits = BitStream::from_u64(&[0x5d]);
         assert_eq!(bits.len(), 64);
         assert_eq!(bits.get(0), 0);
         assert_eq!(bits.get(1), 0);
@@ -242,8 +276,8 @@ mod tests {
     }
 
     #[test]
-    fn test_bitstream_from_i64() {
-        let bits = BitStream::from_i64(&[0x1234cdef]);
+    fn test_bitstream_from_u64() {
+        let bits = BitStream::from_u64(&[0x1234cdef]);
         let mut result: i64 = 0;
         assert_eq!(bits.len(), 64);
         for idx in 0..bits.len(){
