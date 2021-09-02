@@ -14,6 +14,7 @@ use bit_stream::BitStream;
 
 type Bit = u8;
 
+#[derive(PartialEq)]
 pub struct Keccak{
     state: Vec<Vec<Vec<Bit>>>,
     w: usize,
@@ -87,19 +88,21 @@ impl Keccak{
             ^ self.state[x][3][z] ^ self.state[x][4][z];
     }
 
-    pub fn theta(&mut self){
+    fn theta(&mut self){
+        let mut new_state = self.empty_state();
         for x in 0..(5 as i64){
             for z in 0..(self.w as i64){
                 let d = self.column_parity((x-1) as usize %5, z as usize) ^
                     self.column_parity((x+1) as usize %5, (z-1) as usize %(self.w));
                 for y in 0..(5 as usize){
-                    self.state[x as usize][y][z as usize] ^= d;
+                    new_state[x as usize][y][z as usize] = self.state[x as usize][y][z as usize] ^ d;
                 }
             }
         }
+        self.state = new_state;
     }
 
-    pub fn rho(&mut self){
+    fn rho(&mut self){
         let mut new_state = self.empty_state();
         for z in 0..self.w { new_state[0][0][z] = self.state[0][0][z] }
         // could use lookup table to reduce calculations
@@ -115,7 +118,7 @@ impl Keccak{
         self.state = new_state;
     }
 
-    pub fn pi(&mut self){
+    fn pi(&mut self){
         let mut new_state = self.empty_state();
         for x in 0..(5 as usize){
             for y in 0..(5 as usize){
@@ -127,7 +130,7 @@ impl Keccak{
         self.state = new_state;
     }
 
-    pub fn chi(&mut self){
+    fn chi(&mut self){
         let mut new_state = self.empty_state();
         for x in 0..(5 as usize){
             for y in 0..(5 as usize){
@@ -139,7 +142,7 @@ impl Keccak{
         self.state = new_state;
     }
 
-    pub fn rc(t: u64) -> Bit{
+    fn rc(t: u64) -> Bit{
         if t % 255 == 0 {return 1;}
         let mut state: u32 = 1;
         for _ in 1 .. t % 255 + 1{
@@ -154,7 +157,7 @@ impl Keccak{
         return (state as u8) & 1;
     }
 
-    pub fn iota(&mut self, round: u64){
+    fn iota(&mut self, round: u64){
         let mut rc = BitStream::new(self.w);
         for j in 0..self.l{
             rc.set(i64::pow(2, j as u32) as usize - 1, Keccak::rc(j as u64 + 7*round))
@@ -174,6 +177,14 @@ impl Keccak{
         }
     }
 
+    /// xors message with current state
+    /// does rounds of keccak
+    pub fn sponge_absorb(&mut self, message:& BitStream){
+        if message.len() % (self.w * 25) != 0{
+            let pad = (f64::ceil(message.len() as f64 / (self.w * 25) as f64) as u64 * (self.w * 25) as u64) - message.len() as u64;
+
+        }
+    }
 }
 
 impl Debug for Keccak{
@@ -294,5 +305,17 @@ mod tests {
         k1.keccak(18);
         k2.keccak(18);
         assert_eq!(k1.get_state().as_vec_u64(), k2.get_state().as_vec_u64());
+    }
+
+    #[test]
+    fn test_theta(){
+        let mut k = Keccak::new(&BitStream::from_str("1\0\0\0\01\0\0\0\01\0\0\0\01\0\0\0\01\0\0\0\0"));
+        let k1 = Keccak::new(&BitStream::from_val(&[0x00, 0x31, 0x00, 0x00, 0x98,
+                                                    0x00, 0x31, 0x00, 0x00, 0x98,
+                                                    0x00, 0x31, 0x00, 0x00, 0x98,
+                                                    0x00, 0x31, 0x00, 0x00, 0x98,
+                                                    0x00, 0x31, 0x00, 0x00, 0x98_u8, ]));
+        k.theta();
+        assert_eq!(k, k1);
     }
 }

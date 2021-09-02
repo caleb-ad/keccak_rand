@@ -83,6 +83,45 @@ impl BitStream{
       return temp;
    }
 
+   pub fn add_val<T>(&mut self, src:& [T]) -> ()
+   where T: Into<u64> + Copy
+   {
+      let mut idx = self.bits.len() - 1;
+      let mut b_idx: i32 = (self.len() as u64 % 64) as i32;
+      assert_eq!(b_idx % 8, 0);
+      for src_idx in 0..src.len(){
+         for src_b_idx in (0..size_of::<T>()).rev(){
+            self.bits[idx] |= ((0xFFu64 << src_b_idx * 8) & src[src_idx].into()) << (b_idx as usize - src_b_idx * 8);
+            b_idx -= 8;
+            if b_idx < 0{
+               b_idx = 56;
+               idx += 1;
+               self.bits.push(0);
+            }
+         }
+      }
+   }
+
+   pub fn try_add_val<T>(&mut self, src:& [T]) -> ()
+   where T: TryInto<u64> + Copy,
+         <T as TryInto<u64>>::Error: Debug
+   {
+      let mut idx = self.bits.len() - 1;
+      let mut b_idx: i32 = (self.len() as u64 % 64) as i32;
+      assert_eq!(b_idx % 8, 0);
+      for src_idx in 0..src.len(){
+         for src_b_idx in (0..size_of::<T>()).rev(){
+            self.bits[idx] |= ((0xFFu64 << src_b_idx * 8) & src[src_idx].try_into().unwrap()) << (b_idx as usize - src_b_idx * 8);
+            b_idx -= 8;
+            if b_idx < 0{
+               b_idx = 56;
+               idx += 1;
+               self.bits.push(0);
+            }
+         }
+      }
+   }
+
    pub fn from_str<'a>(src: &'a str) -> Self{
       let mut temp = BitStream{
          bits: Vec::new(),
