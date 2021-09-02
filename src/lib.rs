@@ -1,3 +1,5 @@
+pub mod bit_stream;
+
 use std::{
     vec::Vec,
     fmt::{
@@ -7,10 +9,10 @@ use std::{
         Display,
     },
     convert::TryInto,
+    cmp::min,
 };
 
-mod bit_stream;
-use bit_stream::BitStream;
+pub use bit_stream::BitStream;
 
 type Bit = u8;
 
@@ -51,14 +53,8 @@ impl Keccak{
             l: 0
         };
         temp.l = f64::log2(temp.w as f64) as u64;
-        temp.state.resize(5, Vec::new());
-        for idx in 0 .. 5 {
-            temp.state[idx].resize(5, Vec::new());
-            for idx1 in 0 .. 5 {
-                temp.state[idx][idx1].resize(temp.w, 0);
-            }
-        }
-        for idx in 0 .. temp.w * 25{
+        temp.state = temp.empty_state();
+        for idx in 0..min(message.len(), temp.w * 25){
             temp.set((idx / temp.w) % 5, idx / (temp.w * 5), idx % temp.w, message[idx]);
         }
         return temp;
@@ -75,14 +71,8 @@ impl Keccak{
             l: 0
         };
         temp.l = f64::log2(temp.w as f64) as u64;
-        temp.state.resize(5, Vec::new());
-        for idx in 0 .. 5 {
-            temp.state[idx].resize(5, Vec::new());
-            for idx1 in 0 .. 5 {
-                temp.state[idx][idx1].resize(temp.w, 0);
-            }
-        }
-        for idx in 0 .. temp.w * 25{
+        temp.state = temp.empty_state();
+        for idx in 0..min(message.len(), temp.w * 25){
             temp.set((idx / temp.w) % 5, idx / (temp.w * 5), idx % temp.w, message[idx]);
         }
         return temp;
