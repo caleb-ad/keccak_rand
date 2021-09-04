@@ -16,7 +16,7 @@ use std::{
    convert::TryInto,
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct BitStream{
    bits: Vec<u64>,
    length: usize
@@ -198,9 +198,3 @@ impl Index<usize> for BitStream{
       }
    }
 }
-
-/* impl PartialEq for BitStream{
-   fn eq(& self, other: & Self) -> bool{
-      return self.bits == other.bits;
-   }
-} */

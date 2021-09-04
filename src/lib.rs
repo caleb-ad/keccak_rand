@@ -17,7 +17,6 @@ use vla::VLA;
 
 type Bit = u8;
 
-#[derive(PartialEq)]
 pub struct Keccak<'a>{
     state: &'a mut VLA<Bit>,
     state1: &'a mut VLA<Bit>,
@@ -152,7 +151,7 @@ impl Keccak<'_>{
         let (mut x, mut y) = (1, 0);
         for t in 0..23{
             for z in 0..self.w{
-                self.set(x, y, z, self.get(x, y, (z - (t+1)*(t+2)/2) as usize % self.w ));
+                self.set(x, y, z, self.get(x, y, ((z as i64 - (t+1)*(t+2)/2)).abs() as usize % self.w ));
             }
             let temp = y;
             y = (2*x + 3*y) % 5;
@@ -396,12 +395,12 @@ mod tests {
     #[test]
     fn test_theta(){
         let mut k = Keccak::new(&BitStream::from_str("1\0\0\0\01\0\0\0\01\0\0\0\01\0\0\0\01\0\0\0\0"));
-        let k1 = Keccak::new(&BitStream::from_val(&[0x00, 0x31, 0x00, 0x00, 0x98,
-                                                    0x00, 0x31, 0x00, 0x00, 0x98,
-                                                    0x00, 0x31, 0x00, 0x00, 0x98,
-                                                    0x00, 0x31, 0x00, 0x00, 0x98,
-                                                    0x00, 0x31, 0x00, 0x00, 0x98_u8, ]));
+        let k1 = Keccak::new(&BitStream::from_val(&[0x31, 0x31, 0x00, 0x00, 0x18,
+                                                    0x31, 0x31, 0x00, 0x00, 0x18,
+                                                    0x31, 0x31, 0x00, 0x00, 0x18,
+                                                    0x31, 0x31, 0x00, 0x00, 0x18,
+                                                    0x31, 0x31, 0x00, 0x00, 0x18_u8, ]));
         k.theta();
-        assert_eq!(k, k1);
+        assert_eq!(k.get_state(), k1.get_state());
     }
 }
