@@ -1,6 +1,5 @@
 use rand_keccak::Keccak;
 use rand_keccak::BitStream;
-use std::time::*;
 
 fn gen_sample(size: u32, range_max: u64) -> Vec<u64>{
    let mut temp = Vec::new();
