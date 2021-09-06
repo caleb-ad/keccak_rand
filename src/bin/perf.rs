@@ -12,6 +12,9 @@ fn gen_sample(size: u32, range_max: u64) -> Vec<u64>{
 }
 
 fn main(){
-   //5.652s
+   //5.652s - Vec as internal state
+   //       - allocating memory for each new state
+   //1.830s - VLA as internal state
+   //       - swap between two state buffers
    gen_sample(1000, 100);
 }
