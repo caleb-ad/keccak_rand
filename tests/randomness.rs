@@ -1,9 +1,10 @@
+#![allow(dead_code)]
+
 use rand_keccak::Keccak;
 use rand_keccak::BitStream;
 use std::fs::File;
 use std::io::Write;
 use std::time::SystemTime;
-use std::time::Duration;
 
 fn gen_sample(size: u64, range_max: u64, seed: u64) -> Vec<u64>{
    let mut temp = Vec::new();
@@ -68,23 +69,26 @@ fn get_maxmin(sample:& Vec<u64>) -> (u64, u64){
 #[allow(unused_macros)]
 macro_rules! print_desc_stats {
    ($mean:expr, $sd:expr, $max:expr, $min:expr) => {
-      println!("Distribution Description:
-      Mean: {}
-      Std Dev: {}
-      Max: {}
-      Min: {}", $mean, $std_dev, $max, $min);
+      println!("Distribution Description:\n"
+               "  Mean: {}\n"
+               "  Std Dev: {}\n"
+               "  Max: {}\n"
+               "  Min: {}",
+      $mean, $std_dev, $max, $min);
    };
 }
 
 fn test_sample(range_max: u64, sample_size: u64){
    // below error bounds for mean and standard deviation were chosen so the test can scale
-   // to dfferent range and sample sizes, but without any theoretical backing
+   // to dfferent range and sample sizes, but were chosen without any theoretical backing
    let sample = gen_sample(sample_size, range_max, SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs());
    // expected mean = (range_max - 1) / 2
    let mean = get_mean(& sample);
-   assert_eq!(mean - ((range_max as f64 - 1.0) / 2.0) < (range_max as f64 / sample_size as f64), true);
+   assert_eq!(f64::abs(mean - ((range_max as f64 - 1.0) / 2.0)) < 10.0 * (range_max as f64 / sample_size as f64), true);
    let std_dev = get_std_deviation(& sample, mean);
-   assert_eq!(std_dev - std_dev_exp(range_max as usize) < (range_max as f64 / sample_size as f64), true);
+   assert_eq!(f64::abs(std_dev - std_dev_exp(range_max as usize)) < 10.0 * (range_max as f64 / sample_size as f64), true);
+   //println!("mean err: {}\nstd_dev err: {}", f64::abs(mean - ((range_max as f64 - 1.0) / 2.0)), f64::abs(std_dev - std_dev_exp(range_max as usize)));
+   //println!("expected err: {}",  (range_max as f64 / sample_size as f64));
 }
 
 #[test]
@@ -95,6 +99,7 @@ fn test_randomness() {
 }
 
 /*
+//utility wrapper to generate test file with "cargo test -- generate"
 #[test]
 fn generate_test_file() {
     gen_sample_to_file(1000, 100, SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs());

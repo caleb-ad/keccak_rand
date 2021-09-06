@@ -29,6 +29,7 @@ impl<T: Copy> VLA<T>{
    }
 
    pub fn get(& self, idx: usize) -> T{
+       //slowest part of function, but could have undefined dereference withou it
        assert_eq!(idx < self.len, true);
        return unsafe{ *self.data.add(idx) };
    }

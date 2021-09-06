@@ -26,7 +26,8 @@ impl BitStream{
    const ONE: u8 = 1;
    const ZERO: u8 = 0;
 
-   /// for i64 and usize, bits are in "reverse" order, ie. get(0) returns MSB
+   /// for i64 and usize, bits are in "in-memory" order, ie. get(0) returns MSB
+   /// depending (i think... maybe) on the endianess of the system
    pub fn from_u64(src:& [u64]) -> Self{
       let mut temp = BitStream{
          bits: Vec::new(),

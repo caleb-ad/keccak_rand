@@ -219,7 +219,6 @@ impl Keccak<'_>{
 
     /// pads message so it may be split evenly into blocks,
     /// each block is xor'ed with the current state, and a round of keccak is done
-    /// unoptimized: likely slow
     pub fn sponge_absorb(& mut self, message:&mut BitStream){
         if message.len() % (self.w * 25) != 0{
             let pad = (f64::ceil(message.len() as f64 / (self.w * 25) as f64) as u64 * (self.w * 25) as u64) - message.len() as u64;
